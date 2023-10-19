@@ -1,0 +1,67 @@
+version: "3"
+
+services:
+   app:
+      image: repo.url/app/image:version		
+      deploy:
+        restart_policy:
+             condition: any
+      ports:
+         - 8000:8000
+
+   redis:
+       image: redis:6-alpine
+       volumes:
+            - app_volume:/app-path
+
+   celery_worker:
+             deploy:
+               restart_policy:
+                 condition: any
+             image: repo.url/app/image:version
+             command: /start-celeryworker
+             volumes:
+                - app_volume:/app-path
+             depends_on:
+                 - redis
+
+   celery_beat:
+            deploy:
+              restart_policy:
+                condition: any
+            image: repo.url/app/image:version
+            command: /start-celerybeat
+            volumes:
+               - app_volume:/app
+            depends_on:
+                 - redis
+
+   flower:
+         image: repo.url/app/image:version
+         command: /start-flower
+         deploy:
+           restart_policy:
+             condition: any
+         volumes:
+            - app_volume:/app-path
+         ports:
+           - 5557:5555
+
+   proxy:
+       image: nginx:alpine
+       ports:
+          - 80:80
+          - 443:443
+       volumes:
+            - ./nginx/app/nginx.conf:/etc/nginx/conf.d/nginx.conf:ro
+            - ./nginx/ssl/:/ssl/
+            - ./nginx/static:/static
+       depends_on:
+           - app
+       deploy:
+          restart_policy:
+             condition: any
+#Volumes
+volumes:
+  app_volume:
+    driver: local
